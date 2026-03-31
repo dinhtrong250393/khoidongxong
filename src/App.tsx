@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BookOpen, Calculator, CheckCircle2, CircleDashed, Users, Sparkles, RotateCcw } from 'lucide-react';
+import { io } from 'socket.io-client';
+
+const socket = io();
 
 type VoteType = 'math' | 'lit' | 'both' | 'neither';
 
@@ -18,6 +21,16 @@ export default function App() {
   const [selectedVote, setSelectedVote] = useState<VoteType | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  useEffect(() => {
+    socket.on('stateUpdate', (newCounts) => {
+      setCounts(newCounts);
+    });
+
+    return () => {
+      socket.off('stateUpdate');
+    };
+  }, []);
+
   const totalVotes = counts.math + counts.lit + counts.both + counts.neither;
   const isFull = totalVotes >= MAX_STUDENTS;
 
@@ -25,7 +38,7 @@ export default function App() {
     e.preventDefault();
     if (!selectedVote || isFull) return;
 
-    setCounts((prev) => ({ ...prev, [selectedVote]: prev[selectedVote] + 1 }));
+    socket.emit('vote', selectedVote);
     setIsSuccess(true);
     
     setTimeout(() => {
@@ -36,7 +49,7 @@ export default function App() {
 
   const resetSurvey = () => {
     if (window.confirm('Bạn có chắc chắn muốn làm lại khảo sát từ đầu?')) {
-      setCounts({ math: 0, lit: 0, both: 0, neither: 0 });
+      socket.emit('reset');
       setSelectedVote(null);
     }
   };
